@@ -1,0 +1,35 @@
+name: Build EXE and APK
+on: { workflow_dispatch: {}, push: { branches: [main] } }
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+        working-directory: exe
+      - run: npm run dist
+        working-directory: exe
+      - uses: actions/upload-artifact@v4
+        with: { name: stickman-exe, path: exe/dist/*.exe }
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - run: npm install
+        working-directory: apk
+      - run: |
+          mkdir -p www
+          cp ../exe/index.html www/index.html
+          npx cap add android
+          sed -i 's/<activity/<activity android:screenOrientation="sensorLandscape"/' android/app/src/main/AndroidManifest.xml
+          npx cap sync android
+          cd android && chmod +x gradlew && ./gradlew assembleDebug
+        working-directory: apk
+      - uses: actions/upload-artifact@v4
+        with: { name: stickman-apk, path: apk/android/app/build/outputs/apk/debug/*.apk }
